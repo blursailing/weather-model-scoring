@@ -1,4 +1,4 @@
-"""CLI entry point for BLUR Weather Intelligence System.
+"""CLI entry point for Weather Model Scoring.
 
 Usage:
     # Score models against SMHI observations for last 48 hours
@@ -200,7 +200,7 @@ def cmd_fetch(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="BLUR Weather Intelligence — Model scoring for offshore racing",
+        description="Weather Model Scoring — Forecast accuracy for offshore racing",
         prog="blur_weather",
     )
     subparsers = parser.add_subparsers(dest="command")

@@ -547,7 +547,7 @@ def print_ranking(scores: list[ModelScore]) -> str:
     """Generate a full Model Accuracy-style ranking report."""
     lines = [
         "=" * 70,
-        "BLUR WEATHER MODEL SCORING REPORT",
+        "WEATHER MODEL SCORING REPORT",
         "=" * 70,
         "",
     ]

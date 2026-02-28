@@ -1,4 +1,4 @@
-"""Pure Plotly chart functions for BLUR Weather Intelligence GUI.
+"""Pure Plotly chart functions for Weather Model Scoring GUI.
 
 All functions accept pre-processed DataFrames and return plotly Figure objects.
 No Streamlit imports — safe to test independently or use in notebooks.

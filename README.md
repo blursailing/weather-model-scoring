@@ -1,6 +1,6 @@
-# BLUR Weather Intelligence System
+# Weather Model Scoring
 
-**J/99 BLUR (SWE-53435) — AI-assisted weather model scoring for offshore racing**
+**J/99 BLUR (SWE-53435) — Forecast accuracy analysis for offshore racing**
 
 ## What This Is
 

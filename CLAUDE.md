@@ -1,6 +1,6 @@
 # CLAUDE.md — Instructions for Claude Code
 
-## Project: BLUR Weather Intelligence System
+## Project: Weather Model Scoring
 This is a Python project for scoring weather forecast models against observations,
 designed for offshore sailing racing (J/99 BLUR, Gotland Runt, etc.).
 

@@ -1,4 +1,4 @@
-"""Streamlit web interface for BLUR Weather Intelligence.
+"""Streamlit web interface for Weather Model Scoring.
 
 Run with:
     python3 -m streamlit run blur_weather/app.py
@@ -15,7 +15,7 @@ from typing import Optional, List
 
 # ── must be the very first Streamlit call ──────────────────────────────────────
 st.set_page_config(
-    page_title="BLUR Weather Intelligence",
+    page_title="Weather Model Scoring",
     page_icon="⛵",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -205,8 +205,8 @@ def compute_front_results(forecasts: dict, observations: pd.DataFrame) -> tuple:
 # ============================================================
 
 def render_sidebar() -> dict:
-    st.sidebar.title("BLUR Weather Intel")
-    st.sidebar.markdown("*Offshore racing — model scoring*")
+    st.sidebar.title("Weather Model Scoring")
+    st.sidebar.markdown("*Offshore racing — forecast accuracy*")
     st.sidebar.divider()
 
     mode = st.sidebar.radio("Analysis Mode", ["Station", "Race Course"], horizontal=True)
@@ -683,7 +683,7 @@ def run_course_analysis(sidebar: dict) -> Optional[dict]:
 
 def render_welcome():
     st.markdown("""
-    ## Welcome to BLUR Weather Intelligence
+    ## Welcome to Weather Model Scoring
 
     Select a station or race course in the sidebar, choose a time window,
     then click **Run Analysis** to score all weather models against live observations.
