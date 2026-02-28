@@ -720,3 +720,158 @@ def plot_front_timing_table(front_results: list) -> go.Figure:
         margin=dict(t=10, b=10, l=10, r=10),
     )
     return _apply_blur_theme(fig)
+
+
+# ============================================================
+# FRONT SIGNATURE CHART (pressure tendency + wind shift)
+# ============================================================
+
+def plot_front_signature(
+    forecasts: dict,
+    observations: pd.DataFrame,
+    obs_events: list,
+    time_window_hours: int = 24,
+    window_hours: int = 3,
+) -> go.Figure:
+    """Two-panel chart showing the meteorological signature of frontal passages.
+
+    Row 1: Pressure tendency (dP/3h) — the "pressure trough" approaching
+    Row 2: Wind shift rate (degrees/3h) — the veer/back signature
+
+    Observed fronts are marked with vertical lines. This lets the navigator
+    see how each model's pressure/wind signals compare to reality, and
+    whether the next front is visible in the model data.
+
+    Args:
+        forecasts: Dict[model_id, DataFrame]
+        observations: DataFrame with pressure_hpa and wind_direction
+        obs_events: List of observed FrontalEvent
+        time_window_hours: Window to display
+        window_hours: Differencing window for tendency/shift
+    """
+    from .fronts import compute_pressure_tendency, compute_wind_shift
+
+    colours = _model_colour_map(list(forecasts.keys()))
+    obs = _filter_to_window(observations, time_window_hours)
+
+    has_pressure = (
+        "pressure_hpa" in obs.columns
+        and obs["pressure_hpa"].notna().sum() > window_hours
+    )
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        row_heights=[0.5, 0.5],
+        subplot_titles=[
+            f"Pressure Tendency (dP/{window_hours}h)",
+            f"Wind Shift ({window_hours}h change)",
+        ],
+        vertical_spacing=0.14,
+        shared_xaxes=True,
+    )
+
+    # ── Observed pressure tendency ──
+    if has_pressure:
+        obs_sorted = obs.sort_values("datetime").reset_index(drop=True)
+        obs_tendency = compute_pressure_tendency(obs_sorted, window_hours)
+        valid_mask = obs_tendency.notna()
+        if valid_mask.any():
+            fig.add_trace(go.Scatter(
+                x=obs_sorted.loc[valid_mask, "datetime"],
+                y=obs_tendency[valid_mask],
+                mode="lines",
+                name="Observed",
+                line=dict(color=OBS_COLOUR, width=2.5),
+                showlegend=True,
+            ), row=1, col=1)
+
+    # ── Observed wind shift ──
+    if "wind_direction" in obs.columns:
+        obs_sorted = obs.sort_values("datetime").reset_index(drop=True)
+        obs_shift = compute_wind_shift(obs_sorted, window_hours)
+        valid_mask = obs_shift.notna()
+        if valid_mask.any():
+            fig.add_trace(go.Scatter(
+                x=obs_sorted.loc[valid_mask, "datetime"],
+                y=obs_shift[valid_mask],
+                mode="lines",
+                name="Observed",
+                line=dict(color=OBS_COLOUR, width=2.5),
+                showlegend=False,
+            ), row=2, col=1)
+
+    # ── Model pressure tendency + wind shift ──
+    for model_id, fcst_df in forecasts.items():
+        fcst = _filter_to_window(fcst_df, time_window_hours)
+        if fcst.empty:
+            continue
+
+        colour = colours.get(model_id, "#888888")
+        alias = _model_alias(model_id)
+        fcst_sorted = fcst.sort_values("datetime").reset_index(drop=True)
+
+        # Pressure tendency
+        if "pressure_hpa" in fcst_sorted.columns and fcst_sorted["pressure_hpa"].notna().sum() > window_hours:
+            tendency = compute_pressure_tendency(fcst_sorted, window_hours)
+            valid_mask = tendency.notna()
+            if valid_mask.any():
+                fig.add_trace(go.Scatter(
+                    x=fcst_sorted.loc[valid_mask, "datetime"],
+                    y=tendency[valid_mask],
+                    mode="lines",
+                    name=alias,
+                    line=dict(color=colour, width=1.5),
+                    showlegend=True,
+                ), row=1, col=1)
+
+        # Wind shift
+        if "wind_direction" in fcst_sorted.columns:
+            shift = compute_wind_shift(fcst_sorted, window_hours)
+            valid_mask = shift.notna()
+            if valid_mask.any():
+                fig.add_trace(go.Scatter(
+                    x=fcst_sorted.loc[valid_mask, "datetime"],
+                    y=shift[valid_mask],
+                    mode="lines",
+                    name=alias,
+                    line=dict(color=colour, width=1.5),
+                    showlegend=False,
+                ), row=2, col=1)
+
+    # ── Zero reference lines ──
+    fig.add_hline(y=0, line_dash="solid", line_color="rgba(0,0,0,0.15)",
+                  line_width=1, row=1, col=1)
+    fig.add_hline(y=0, line_dash="solid", line_color="rgba(0,0,0,0.15)",
+                  line_width=1, row=2, col=1)
+
+    # ── Front markers ──
+    def _dt_str(ts):
+        if hasattr(ts, 'isoformat'):
+            return ts.isoformat()
+        return str(ts)
+
+    for ev in obs_events:
+        x_str = _dt_str(ev.datetime)
+        for row in [1, 2]:
+            fig.add_shape(
+                type="line", x0=x_str, x1=x_str, y0=0, y1=1,
+                yref=f"y{row} domain", line=dict(color="#000000", width=1.5, dash="dash"),
+            )
+        # Label only on top row
+        fig.add_annotation(
+            x=x_str, y=1, yref="y domain", text="FRONT",
+            showarrow=False, font=dict(size=9, color="#000000", weight="bold"),
+            yanchor="bottom", bgcolor="rgba(255,255,255,0.8)",
+        )
+
+    fig.update_yaxes(title_text="hPa / 3h", row=1, col=1)
+    fig.update_yaxes(title_text="degrees / 3h", row=2, col=1)
+    fig.update_xaxes(tickformat="%H:%M", row=2, col=1)
+
+    fig.update_layout(
+        height=480,
+        legend=dict(orientation="h", yanchor="bottom", y=1.06, xanchor="left", x=0),
+        margin=dict(t=80, b=40, l=60, r=20),
+        hovermode="x unified",
+    )
+    return _apply_blur_theme(fig)

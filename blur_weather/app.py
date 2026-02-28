@@ -399,10 +399,107 @@ def _render_time_series(forecasts, observations, scores, time_window_hours,
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Front timing table
-    if front_results:
-        st.subheader("Front Timing Comparison")
-        st.plotly_chart(plot.plot_front_timing_table(front_results), use_container_width=True)
+    # ── Front / Wind Shift Analysis ──────────────────────────────────────
+    _render_front_analysis(forecasts, observations, obs_events, front_results,
+                           time_window_hours)
+
+
+def _render_front_analysis(forecasts, observations, obs_events, front_results,
+                           time_window_hours):
+    """Render the frontal passage analysis section below the timeseries."""
+    has_pressure = (
+        "pressure_hpa" in observations.columns
+        and not observations["pressure_hpa"].isna().all()
+    )
+
+    if not has_pressure:
+        st.caption(
+            "No pressure data available for this station — "
+            "front detection requires barometric pressure."
+        )
+        return
+
+    st.divider()
+    st.subheader("Wind Shift & Front Detection")
+
+    # ── Narrative summary ──
+    if obs_events:
+        n = len(obs_events)
+        front_word = "front" if n == 1 else "fronts"
+        times_str = ", ".join(
+            ev.datetime.strftime("%d %b %H:%M UTC") for ev in obs_events
+        )
+        st.markdown(
+            f"**{n} frontal passage{'s' if n > 1 else ''} detected** "
+            f"in observations: {times_str}"
+        )
+
+        # Per-event detail
+        for i, ev in enumerate(obs_events):
+            shift_dir = "veered" if ev.twd_shift_degrees > 0 else "backed"
+            st.markdown(
+                f"- **{ev.datetime.strftime('%H:%M UTC')}**: "
+                f"Pressure tendency {ev.pressure_tendency:+.1f} hPa/3h, "
+                f"wind {shift_dir} {abs(ev.twd_shift_degrees):.0f}°"
+            )
+
+        # Model comparison
+        if front_results:
+            st.markdown("**Model comparison:**")
+            valid_fr = [fr for fr in front_results if fr is not None]
+            for fr in sorted(valid_fr, key=lambda f: f.mean_timing_error_hours):
+                alias = plot._model_alias(fr.model_id)
+                if fr.matched_pairs:
+                    errors = [f"{err:+.1f}h" for _, _, err in fr.matched_pairs]
+                    err_str = ", ".join(errors)
+                    mean_str = f"{fr.mean_timing_error_hours:.1f}h"
+                    sign_word = ""
+                    # Check if model is consistently early or late
+                    signed_errors = [err for _, _, err in fr.matched_pairs]
+                    mean_signed = sum(signed_errors) / len(signed_errors)
+                    if abs(mean_signed) > 0.3:
+                        sign_word = " late" if mean_signed > 0 else " early"
+                    st.markdown(
+                        f"- **{alias}**: {err_str} "
+                        f"(mean {mean_str}{sign_word})"
+                        + (f" — {fr.n_missed} missed" if fr.n_missed > 0 else "")
+                        + (f", {fr.n_false_alarms} false alarm{'s' if fr.n_false_alarms > 1 else ''}"
+                           if fr.n_false_alarms > 0 else "")
+                    )
+                else:
+                    missed_str = f"{fr.n_missed} missed" if fr.n_missed > 0 else ""
+                    fa_str = (f"{fr.n_false_alarms} false alarm{'s' if fr.n_false_alarms > 1 else ''}"
+                              if fr.n_false_alarms > 0 else "")
+                    parts = [p for p in [missed_str, fa_str] if p]
+                    st.markdown(f"- **{alias}**: No match — {', '.join(parts)}")
+    else:
+        st.info(
+            "No frontal passages detected in the observation window. "
+            "This typically means stable high-pressure or gradual changes. "
+            "The signature chart below still shows pressure tendency and wind "
+            "shift — watch for signals building in the model forecasts."
+        )
+
+    # ── Signature chart ──
+    st.caption(
+        "Pressure tendency shows the rate of pressure change (falling = front approaching, "
+        "trough = front passing). Wind shift shows the rate of direction change "
+        "(sharp spike = frontal veer). Compare models against the observed (black) line "
+        "to judge which model best captures the timing and intensity."
+    )
+
+    sig_fig = plot.plot_front_signature(
+        forecasts, observations,
+        obs_events=obs_events or [],
+        time_window_hours=time_window_hours,
+    )
+    st.plotly_chart(sig_fig, use_container_width=True)
+
+    # ── Timing table (if fronts detected) ──
+    if front_results and obs_events:
+        st.subheader("Timing Detail")
+        st.plotly_chart(plot.plot_front_timing_table(front_results),
+                        use_container_width=True)
 
 
 def _render_rolling_error(forecasts, observations, time_window_hours):
