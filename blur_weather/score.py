@@ -577,3 +577,181 @@ def print_ranking(scores: list[ModelScore]) -> str:
     
     report = "\n".join(lines)
     return report
+
+
+# ============================================================
+# V2 HISTORICAL SCORING — MySQL observations + Previous Runs API
+# ============================================================
+
+def score_models_historical(
+    station_code: str,
+    db,
+    days_back: int = 30,
+    lead_times: Optional[List[int]] = None,
+    models: Optional[List[str]] = None,
+    weights: Optional[ScoringWeights] = None,
+):
+    """Score all models for a station over a historical period at multiple lead times.
+
+    This is the v2 scoring function that uses stored observations from MySQL/SQLite
+    and historical forecasts from the Open-Meteo Previous Runs API.
+
+    Args:
+        station_code: e.g. ``'smhi_71420'``
+        db: Database instance with ``get_observations_df()`` and
+            ``get_active_stations()`` methods.
+        days_back: Number of days to look back.
+        lead_times: Lead times in days to evaluate (default: ``[1, 2, 3]``).
+        models: Model identifiers (default: ``PREVIOUS_RUNS_MODELS``).
+        weights: Scoring weights.
+
+    Returns:
+        Dict mapping ``model_id → {lead_time_days → ModelScore}``.
+        E.g. ``{'ecmwf_ifs025': {1: ModelScore(...), 2: ModelScore(...)}}``
+        Returns empty dict if insufficient observations.
+    """
+    from datetime import datetime, timedelta
+    from .fetch import fetch_previous_runs
+    from .config import PREVIOUS_RUNS_MODELS
+
+    if lead_times is None:
+        lead_times = [1, 2, 3]
+    if models is None:
+        models = PREVIOUS_RUNS_MODELS
+
+    end = datetime.utcnow()
+    start = end - timedelta(days=days_back)
+
+    obs_df = db.get_observations_df(station_code, start, end)
+    if obs_df.empty or len(obs_df) < 24:
+        logger.warning(
+            "Insufficient observations for %s: %d rows (need >= 24)",
+            station_code, len(obs_df),
+        )
+        return {}
+
+    logger.info(
+        "Loaded %d observations for %s (%s to %s)",
+        len(obs_df), station_code,
+        obs_df["datetime"].min().strftime("%Y-%m-%d"),
+        obs_df["datetime"].max().strftime("%Y-%m-%d"),
+    )
+
+    # Get station coordinates from the DB
+    all_stations = db.get_active_stations()
+    station_record = next(
+        (s for s in all_stations if s["station_code"] == station_code), None,
+    )
+    if station_record is None:
+        logger.error("Station %s not found in database", station_code)
+        return {}
+    lat = float(station_record["latitude"])
+    lon = float(station_record["longitude"])
+
+    results = {}
+
+    for lead_time in lead_times:
+        logger.info("Scoring %s at lead time day+%d...", station_code, lead_time)
+        forecasts = fetch_previous_runs(
+            lat=lat, lon=lon, models=models,
+            past_days=days_back, previous_day=lead_time,
+        )
+
+        for model_id, fcst_df in forecasts.items():
+            score = score_model(model_id, fcst_df, obs_df, weights)
+            if model_id not in results:
+                results[model_id] = {}
+            results[model_id][lead_time] = score
+
+    return results
+
+
+def print_historical_ranking(results: dict, lead_times: Optional[List[int]] = None) -> str:
+    """Generate a model × lead-time scoring matrix.
+
+    Args:
+        results: Dict from ``score_models_historical()``.
+        lead_times: Lead times to display (default: sorted from results).
+
+    Returns:
+        Formatted string table.
+    """
+    if not results:
+        return "No results to display."
+
+    if lead_times is None:
+        all_lts = set()
+        for lt_dict in results.values():
+            all_lts.update(lt_dict.keys())
+        lead_times = sorted(all_lts)
+
+    # Header
+    col_width = 10
+    name_width = 20
+    header = f"{'Model':<{name_width}}"
+    for lt in lead_times:
+        header += f"{'Day+' + str(lt):>{col_width}}"
+    lines = [
+        "=" * (name_width + col_width * len(lead_times)),
+        "HISTORICAL MODEL SCORING MATRIX",
+        "=" * (name_width + col_width * len(lead_times)),
+        "",
+        header,
+        "-" * (name_width + col_width * len(lead_times)),
+    ]
+
+    # Rows sorted by day+1 composite score (best first)
+    model_order = sorted(
+        results.keys(),
+        key=lambda m: results[m].get(lead_times[0], _DummyScore()).composite_score,
+        reverse=True,
+    )
+
+    for model_id in model_order:
+        lt_dict = results[model_id]
+        model_info = MODELS.get(model_id, {"name": model_id})
+        name = model_info.get("name", model_id)
+        row = f"{name:<{name_width}}"
+        for lt in lead_times:
+            score = lt_dict.get(lt)
+            if score:
+                row += f"{score.composite_score:>{col_width}.0f}"
+            else:
+                row += f"{'—':>{col_width}}"
+        lines.append(row)
+
+    # Best model per lead time
+    lines.append("-" * (name_width + col_width * len(lead_times)))
+    best_row = f"{'Best model:':<{name_width}}"
+    nudge_tws_row = f"{'Nudge (TWS):':<{name_width}}"
+    nudge_twd_row = f"{'Nudge (TWD):':<{name_width}}"
+
+    for lt in lead_times:
+        best_model = None
+        best_score = -1
+        for model_id, lt_dict in results.items():
+            s = lt_dict.get(lt)
+            if s and s.composite_score > best_score:
+                best_score = s.composite_score
+                best_model = model_id
+        if best_model:
+            info = MODELS.get(best_model, {"name": best_model})
+            short_name = info.get("alias", info.get("name", best_model))
+            best_row += f"{short_name:>{col_width}}"
+            s = results[best_model][lt]
+            nudge_tws_row += f"{s.nudge.tws_offset_knots:>+{col_width}.1f}"
+            nudge_twd_row += f"{s.nudge.twd_offset_degrees:>+{col_width}.0f}"
+        else:
+            best_row += f"{'—':>{col_width}}"
+            nudge_tws_row += f"{'—':>{col_width}}"
+            nudge_twd_row += f"{'—':>{col_width}}"
+
+    lines.extend([best_row, nudge_tws_row, nudge_twd_row])
+    lines.append("=" * (name_width + col_width * len(lead_times)))
+
+    return "\n".join(lines)
+
+
+class _DummyScore:
+    """Sentinel for sorting models that lack a particular lead time."""
+    composite_score = -1

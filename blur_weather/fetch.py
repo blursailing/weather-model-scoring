@@ -20,8 +20,10 @@ import pandas as pd
 from .config import (
     OPEN_METEO_BASE_URL,
     OPEN_METEO_ARCHIVE_URL,
+    OPEN_METEO_PREVIOUS_RUNS_URL,
     WIND_VARIABLES,
     DEFAULT_MODELS,
+    PREVIOUS_RUNS_MODELS,
     MODELS,
     ms_to_knots,
 )
@@ -206,3 +208,91 @@ def archive_forecasts(
         logger.info(f"Archived {model_id} -> {filepath}")
     
     return data_path
+
+
+def fetch_previous_runs(
+    lat: float,
+    lon: float,
+    models: list = None,
+    past_days: int = 30,
+    previous_day: int = 1,
+) -> dict:
+    """Fetch historical forecasts from Open-Meteo Previous Runs API.
+
+    Returns what each model predicted N days ahead, for the last ``past_days``.
+    This is the key to v2 scoring: compare stored observations against what the
+    model actually predicted at a given lead time.
+
+    Args:
+        lat: Latitude.
+        lon: Longitude.
+        models: Model identifiers (default: ``PREVIOUS_RUNS_MODELS``).
+        past_days: Number of past days to retrieve (max ~90).
+        previous_day: Lead time in days (1 = 24 h ahead, 2 = 48 h, ... 5 = 120 h).
+
+    Returns:
+        Dict mapping model_id to DataFrame with columns:
+        ``[datetime, wind_speed_knots, wind_direction, pressure_hpa]``
+    """
+    if models is None:
+        models = PREVIOUS_RUNS_MODELS
+
+    results = {}
+
+    for model_id in models:
+        model_info = MODELS.get(model_id, {"name": model_id})
+        model_name = model_info.get("name", model_id)
+        logger.info(
+            "Fetching Previous Runs: %s  day+%d  past %d days at (%.2f, %.2f)",
+            model_name, previous_day, past_days, lat, lon,
+        )
+
+        try:
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "hourly": ",".join(WIND_VARIABLES),
+                "models": model_id,
+                "past_days": past_days,
+                "forecast_days": 0,
+                "previous_day": previous_day,
+                "wind_speed_unit": "ms",
+                "timezone": "UTC",
+            }
+
+            response = requests.get(
+                OPEN_METEO_PREVIOUS_RUNS_URL, params=params, timeout=60,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if "hourly" not in data:
+                logger.warning("No hourly data in Previous Runs response for %s", model_id)
+                continue
+
+            hourly = data["hourly"]
+            df = pd.DataFrame({
+                "datetime": pd.to_datetime(hourly["time"]),
+                "wind_speed_ms": hourly.get("wind_speed_10m", []),
+                "wind_direction": hourly.get("wind_direction_10m", []),
+                "wind_gusts_ms": hourly.get("wind_gusts_10m", []),
+                "pressure_hpa": hourly.get("pressure_msl", []),
+            })
+
+            df["wind_speed_knots"] = df["wind_speed_ms"].apply(
+                lambda x: ms_to_knots(x) if pd.notna(x) else None
+            )
+            df["wind_gusts_knots"] = df["wind_gusts_ms"].apply(
+                lambda x: ms_to_knots(x) if pd.notna(x) else None
+            )
+
+            df = df.dropna(subset=["wind_speed_knots", "wind_direction"])
+            results[model_id] = df
+            logger.info("  Got %d records for %s (day+%d)", len(df), model_name, previous_day)
+
+        except requests.RequestException as e:
+            logger.error("Failed to fetch Previous Runs %s: %s", model_id, e)
+        except (KeyError, ValueError) as e:
+            logger.error("Failed to parse Previous Runs %s response: %s", model_id, e)
+
+    return results

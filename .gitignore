@@ -32,3 +32,9 @@ Thumbs.db
 # Data & logs (keep reference data tracked)
 *.log
 data/
+
+# Environment (secrets)
+.env
+
+# SQLite development database
+*.db

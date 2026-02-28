@@ -66,6 +66,46 @@ MODELS = {
         "forecast_days": 5,
         "notes": "Good offshore model. Similar accuracy to ECMWF.",
     },
+    "ecmwf_aifs025": {
+        "name": "ECMWF AIFS",
+        "alias": "Euro AI",
+        "resolution_km": 25,
+        "updates_per_day": 4,
+        "forecast_days": 10,
+        "notes": "AI-based model from ECMWF. New and promising.",
+    },
+    "metno_seamless": {
+        "name": "MET Nordic",
+        "alias": "Nordic",
+        "resolution_km": 2.5,
+        "updates_per_day": 24,
+        "forecast_days": 2.5,
+        "notes": "Best resolution for Scandinavia. Only day+1 and day+2 lead times.",
+    },
+    "dmi_seamless": {
+        "name": "DMI Harmonie",
+        "alias": "Danish",
+        "resolution_km": 2.5,
+        "updates_per_day": 4,
+        "forecast_days": 2.5,
+        "notes": "Covers Denmark + southern Scandinavia.",
+    },
+    "gem_seamless": {
+        "name": "GEM",
+        "alias": "Canadian",
+        "resolution_km": 25,
+        "updates_per_day": 2,
+        "forecast_days": 10,
+        "notes": "Canadian model. Different physics, independent perspective.",
+    },
+    "jma_seamless": {
+        "name": "JMA",
+        "alias": "Japanese",
+        "resolution_km": 20,
+        "updates_per_day": 4,
+        "forecast_days": 10,
+        "notes": "Japanese Met Agency. Independent global perspective.",
+    },
 }
 
 # Subset of models to use by default (the most relevant for Baltic racing)
@@ -114,22 +154,23 @@ class ObservationStation:
 
 
 # Key SMHI stations for Gotland Runt and Kattegat/Skagerrak racing
+# Station IDs validated against SMHI Open Data API parameter 4 (wind speed), 2026-02-28
 SMHI_STATIONS = {
     # Gotland Runt course
-    "svenska_hogarna": ObservationStation("Svenska Högarna", 99280, 59.44, 19.51, "Rounding mark — critical waypoint"),
-    "landsort": ObservationStation("Landsort", 98740, 58.74, 17.86, "Approach to start area"),
-    "gotska_sandon": ObservationStation("Gotska Sandön", 99450, 58.38, 19.20, "Northern approach to Gotland"),
-    "farosund": ObservationStation("Fårösund", 99390, 57.93, 19.07, "Northern Gotland"),
-    "visby_flygplats": ObservationStation("Visby Flygplats", 99280, 57.66, 18.35, "Western Gotland"),
-    "hoburg": ObservationStation("Hoburg", 99090, 56.92, 18.15, "Southern tip of Gotland"),
-    "ostergarnsholm": ObservationStation("Östergarnsholm", 99250, 57.42, 18.99, "Eastern Gotland"),
-    "huvudskar_ost": ObservationStation("Huvudskär Ost", 98820, 58.93, 18.60, "Return leg, outer archipelago"),
+    "svenska_hogarna": ObservationStation("Svenska Högarna A", 99280, 59.44, 19.50, "Rounding mark — critical waypoint"),
+    "landsort": ObservationStation("Landsort A", 87440, 58.74, 17.87, "Approach to start area"),
+    "gotska_sandon": ObservationStation("Gotska Sandön A", 89230, 58.39, 19.19, "Northern approach to Gotland"),
+    "farosund": ObservationStation("Fårösund Ar A", 78550, 57.92, 18.95, "Northern Gotland"),
+    "visby_flygplats": ObservationStation("Visby Flygplats", 78400, 57.67, 18.35, "Western Gotland"),
+    "hoburg": ObservationStation("Hoburg A", 68560, 56.92, 18.15, "Southern tip of Gotland"),
+    "ostergarnsholm": ObservationStation("Östergarnsholm A", 78280, 57.44, 18.98, "Eastern Gotland"),
+    "skarpo": ObservationStation("Skarpö A", 98160, 59.34, 18.74, "Return leg, outer archipelago"),
 
     # Kattegat / Skagerrak (for MBBR, Skagen etc.)
-    "vinga": ObservationStation("Vinga", 71420, 57.63, 11.60, "Gothenburg approach"),
-    "nordkoster": ObservationStation("Nordkoster", 72250, 58.89, 11.00, "Northern Kattegat"),
-    "maseskar": ObservationStation("Måseskär", 72050, 58.10, 11.33, "Mid-Kattegat"),
-    "nidingen": ObservationStation("Nidingen", 71380, 57.30, 11.90, "Southern approach"),
+    "vinga": ObservationStation("Vinga A", 71380, 57.63, 11.60, "Gothenburg approach"),
+    "nordkoster": ObservationStation("Nordkoster A", 81540, 58.89, 11.00, "Northern Kattegat"),
+    "maseskar": ObservationStation("Måseskär A", 81050, 58.09, 11.33, "Mid-Kattegat"),
+    "nidingen": ObservationStation("Nidingen A", 71190, 57.30, 11.90, "Southern approach"),
 }
 
 
@@ -172,7 +213,7 @@ COURSES = {
         typical_month=6,  # Late June
         nearby_stations=[
             "svenska_hogarna", "landsort", "gotska_sandon", "farosund",
-            "visby_flygplats", "hoburg", "ostergarnsholm", "huvudskar_ost",
+            "visby_flygplats", "hoburg", "ostergarnsholm", "skarpo",
         ],
         description="350 NM around Gotland, start/finish Sandhamn",
     ),
@@ -198,6 +239,22 @@ COURSES = {
 OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_HISTORICAL_URL = "https://api.open-meteo.com/v1/forecast"  # with past_days param
 OPEN_METEO_ARCHIVE_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+OPEN_METEO_PREVIOUS_RUNS_URL = "https://previous-runs-api.open-meteo.com/v1/forecast"
+
+# Models available in the Previous Runs API, relevant for Scandinavia/Baltic
+PREVIOUS_RUNS_MODELS = [
+    "ecmwf_ifs025",
+    "ecmwf_aifs025",
+    "gfs_seamless",
+    "icon_seamless",
+    "icon_eu",
+    "meteofrance_seamless",
+    "metno_seamless",
+    "dmi_seamless",
+    "knmi_seamless",
+    "gem_seamless",
+    "jma_seamless",
+]
 
 # Variables we need for wind scoring
 WIND_VARIABLES = [

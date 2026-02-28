@@ -1,0 +1,73 @@
+# BLUR Observation Collector — Station Registry
+# ~50 coastal stations across Sweden, Norway, Denmark, Finland
+# Grouped by source API, then by race area
+#
+# SMHI station IDs validated against SMHI Open Data API parameter 4 (wind speed)
+# https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/4.json
+# Last validated: 2026-02-28
+
+smhi:
+  gotland_runt:
+    - {code: 99280, name: "Svenska Högarna A", lat: 59.4423, lon: 19.5022}
+    - {code: 98160, name: "Skarpö A", lat: 59.3446, lon: 18.7404}        # Replaces Huvudskär Ost (78564, not found); Huvudskär stations inactive
+    - {code: 87440, name: "Landsort A", lat: 58.7429, lon: 17.8684}       # Replaces 78312 (not found)
+    - {code: 89230, name: "Gotska Sandön A", lat: 58.3939, lon: 19.1940}  # Replaces 97530 (was actually Uppsala Flygplats)
+    - {code: 78550, name: "Fårösund Ar A", lat: 57.9165, lon: 18.9533}    # Replaces 97400 (was actually Stockholm-Arlanda)
+    - {code: 78280, name: "Östergarnsholm A", lat: 57.4408, lon: 18.9839} # Replaces 97310 (not found)
+    - {code: 78400, name: "Visby Flygplats", lat: 57.6678, lon: 18.3516}  # Replaces 97280 (was actually Adelsö A)
+    - {code: 68560, name: "Hoburg A", lat: 56.9209, lon: 18.1506}         # Replaces 97100 (found but inactive Tullinge)
+    - {code: 9013, name: "Alskog", lat: 57.3271, lon: 18.6162}            # Replaces Näsudden (97120, not found; Näsudden Aut 78040 inactive)
+  kattegat:
+    - {code: 71380, name: "Vinga A", lat: 57.6322, lon: 11.6048}          # Replaces 71420 (was actually Göteborg A)
+    - {code: 81540, name: "Nordkoster A", lat: 58.8920, lon: 11.0038}     # Replaces 78680 (not found)
+    - {code: 81050, name: "Måseskär A", lat: 58.0937, lon: 11.3312}       # Replaces 72610 (not found)
+    - {code: 71190, name: "Nidingen A", lat: 57.3036, lon: 11.9049}       # Replaces 72200 (not found)
+    - {code: 81350, name: "Väderöarna A", lat: 58.5760, lon: 11.0661}     # Replaces 72630 (not found)
+    - {code: 62410, name: "Halmstad flygplats", lat: 56.6833, lon: 12.8167}  # Replaces 72040 (not found)
+    - {code: 52240, name: "Falsterbo A", lat: 55.3837, lon: 12.8166}      # Replaces 53420 (not found)
+  bottenhavet:
+    - {code: 99450, name: "Söderarm A", lat: 59.7531, lon: 19.4054}
+    - {code: 108320, name: "Örskär A", lat: 60.5256, lon: 18.3729}        # Replaces Grundkallen (99370, not found; Grundkallen 108300 inactive)
+    - {code: 117430, name: "Kuggören A", lat: 61.7027, lon: 17.5216}      # Replaces Finngrundet (99600, not found; no Finngrundet in API)
+    - {code: 107440, name: "Eggegrund A", lat: 60.7298, lon: 17.5584}     # Replaces 99540 (not found)
+  south_baltic:
+    - {code: 64020, name: "Hanö A", lat: 56.0135, lon: 14.8463}           # Replaces 66110 (was actually Ölands södra udde A)
+    - {code: 55570, name: "Utklippan A", lat: 55.9557, lon: 15.7048}      # Replaces 66105 (not found)
+    - {code: 66110, name: "Ölands södra udde A", lat: 56.1977, lon: 16.4005}  # Replaces 76420 (was actually Gladhammar A)
+
+met_no:
+  skagerrak:
+    - {code: "SN27500", name: "Færder Fyr", lat: 59.0267, lon: 10.5267}
+    - {code: "SN35860", name: "Torungen Fyr", lat: 58.3989, lon: 8.7897}
+    - {code: "SN42160", name: "Lista Fyr", lat: 58.1092, lon: 6.5694}
+    - {code: "SN42100", name: "Oksøy Fyr", lat: 58.0733, lon: 8.0547}
+    - {code: "SN42300", name: "Lindesnes Fyr", lat: 57.9831, lon: 7.0481}
+    - {code: "SN47300", name: "Utsira", lat: 59.3067, lon: 4.8833}
+    - {code: "SN44560", name: "Sola", lat: 58.8867, lon: 5.6372}
+
+dmi:
+  kattegat:
+    - {code: "06041", name: "Skagen Fyr", lat: 57.7308, lon: 10.6297}
+    - {code: "06079", name: "Anholt Havn", lat: 56.7167, lon: 11.5167}
+    - {code: "06058", name: "Læsø", lat: 57.2733, lon: 11.0050}
+    - {code: "06088", name: "Gniben", lat: 56.0050, lon: 11.2817}
+    - {code: "06183", name: "Drogden Fyr", lat: 55.5333, lon: 12.7167}
+  bornholm:
+    - {code: "06190", name: "Rønne", lat: 55.0633, lon: 14.7553}
+    - {code: "06193", name: "Christiansø", lat: 55.3196, lon: 15.1878}
+  other:
+    - {code: "06074", name: "Grenaa Havn", lat: 56.4117, lon: 10.9267}
+    - {code: "06052", name: "Thyborøn", lat: 56.7064, lon: 8.2147}
+    - {code: "06156", name: "Kegnæs Fyr", lat: 54.8517, lon: 9.9950}
+
+fmi:
+  aaland_bottenhavet:
+    - {code: "100908", name: "Utö", lat: 59.7792, lon: 21.3733}
+    - {code: "100921", name: "Bogskär", lat: 59.5072, lon: 20.3519}
+    - {code: "100919", name: "Märket", lat: 60.3017, lon: 19.1317}
+    - {code: "100946", name: "Isokari", lat: 60.7167, lon: 21.0167}
+  gulf_of_finland:
+    - {code: "100996", name: "Helsinki Lighthouse", lat: 59.9492, lon: 24.9264}
+    - {code: "101004", name: "Kalbådagrund", lat: 59.9886, lon: 25.5994}
+    - {code: "100932", name: "Russarö", lat: 59.7731, lon: 22.9489}
+    - {code: "101042", name: "Hamina ELY", lat: 60.5475, lon: 27.0706}

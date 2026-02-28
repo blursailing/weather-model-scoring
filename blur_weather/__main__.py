@@ -185,17 +185,59 @@ def cmd_prerace(args):
 def cmd_fetch(args):
     """Fetch and archive current forecasts."""
     from .fetch import fetch_multi_model_forecast, archive_forecasts
-    
+
     forecasts = fetch_multi_model_forecast(
         lat=args.lat, lon=args.lon,
         forecast_days=args.days or 5,
     )
-    
+
     if forecasts:
         archive_forecasts(forecasts, args.lat, args.lon)
         logger.info(f"Archived {len(forecasts)} model forecasts.")
     else:
         logger.error("No forecasts fetched.")
+
+
+def cmd_collect(args):
+    """Run the observation collector."""
+    from .collector.collect import run, sync_stations
+
+    if args.sync:
+        sync_stations()
+    else:
+        run(
+            sources=[args.source] if args.source else None,
+            dry_run=args.dry_run,
+        )
+
+
+def cmd_score_historical(args):
+    """Score models using stored observations + Previous Runs API."""
+    from .collector.db import Database
+    from .score import score_models_historical, print_historical_ranking
+
+    lead_times = [int(x.strip()) for x in args.lead_times.split(",")]
+
+    with Database.from_env() as db:
+        results = score_models_historical(
+            station_code=args.station_code,
+            db=db,
+            days_back=args.days,
+            lead_times=lead_times,
+        )
+
+    if not results:
+        logger.error("No scoring results produced. Check station and data availability.")
+        sys.exit(1)
+
+    report = print_historical_ranking(results, lead_times)
+    print()
+    print(report)
+
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(report)
+        logger.info(f"Report saved to {args.output}")
 
 
 def main():
@@ -226,7 +268,44 @@ def main():
     p_fetch.add_argument("--lon", type=float, required=True)
     p_fetch.add_argument("--days", type=int, default=5)
     p_fetch.set_defaults(func=cmd_fetch)
-    
+
+    # Collect command (observation collector)
+    p_collect = subparsers.add_parser("collect", help="Run observation collector")
+    p_collect.add_argument(
+        "--source",
+        choices=["smhi", "met_no", "dmi", "fmi"],
+        help="Collect from a single source only",
+    )
+    p_collect.add_argument(
+        "--sync", action="store_true",
+        help="Sync stations from YAML into database",
+    )
+    p_collect.add_argument(
+        "--dry-run", action="store_true",
+        help="Fetch observations but don't insert into database",
+    )
+    p_collect.set_defaults(func=cmd_collect)
+
+    # Score-historical command
+    p_hist = subparsers.add_parser(
+        "score-historical",
+        help="Score models from stored observations + Previous Runs API",
+    )
+    p_hist.add_argument(
+        "--station-code", required=True,
+        help="Station code, e.g. smhi_71420",
+    )
+    p_hist.add_argument(
+        "--days", type=int, default=30,
+        help="Number of days to look back (default: 30)",
+    )
+    p_hist.add_argument(
+        "--lead-times", default="1,2,3",
+        help="Comma-separated lead times in days (default: 1,2,3)",
+    )
+    p_hist.add_argument("--output", "-o", help="Save report to file")
+    p_hist.set_defaults(func=cmd_score_historical)
+
     args = parser.parse_args()
     
     if not args.command:
