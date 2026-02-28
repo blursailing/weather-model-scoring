@@ -585,10 +585,16 @@ def plot_front_annotations(
 
     colours = _model_colour_map([fr.model_id for fr in front_results if fr])
 
+    def _to_py_dt(ts):
+        """Convert pandas Timestamp to Python datetime for Plotly compatibility."""
+        if hasattr(ts, 'to_pydatetime'):
+            return ts.to_pydatetime()
+        return ts
+
     # Observed fronts: black dashed
     for ev in obs_events:
         fig.add_vline(
-            x=ev.datetime,
+            x=_to_py_dt(ev.datetime),
             line_dash="dash",
             line_color="#000000",
             line_width=2,
@@ -605,7 +611,7 @@ def plot_front_annotations(
         alias = _model_alias(fr.model_id)
         for ev in fr.model_events:
             fig.add_vline(
-                x=ev.datetime,
+                x=_to_py_dt(ev.datetime),
                 line_dash="dot",
                 line_color=colour,
                 line_width=1.5,
