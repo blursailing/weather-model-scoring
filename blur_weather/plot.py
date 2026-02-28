@@ -585,39 +585,41 @@ def plot_front_annotations(
 
     colours = _model_colour_map([fr.model_id for fr in front_results if fr])
 
-    def _to_py_dt(ts):
-        """Convert pandas Timestamp to Python datetime for Plotly compatibility."""
-        if hasattr(ts, 'to_pydatetime'):
-            return ts.to_pydatetime()
-        return ts
+    def _dt_str(ts):
+        """Convert timestamp to ISO string for Plotly shape compatibility."""
+        if hasattr(ts, 'isoformat'):
+            return ts.isoformat()
+        return str(ts)
 
-    # Observed fronts: black dashed
+    # Observed fronts: black dashed line + annotation
     for ev in obs_events:
-        fig.add_vline(
-            x=_to_py_dt(ev.datetime),
-            line_dash="dash",
-            line_color="#000000",
-            line_width=2,
-            annotation_text="Front (obs)",
-            annotation_position="top left",
-            annotation_font=dict(size=10, color="#000000"),
+        x_str = _dt_str(ev.datetime)
+        fig.add_shape(
+            type="line", x0=x_str, x1=x_str, y0=0, y1=1,
+            yref="paper", line=dict(color="#000000", width=2, dash="dash"),
+        )
+        fig.add_annotation(
+            x=x_str, y=1, yref="paper", text="Front (obs)",
+            showarrow=False, font=dict(size=10, color="#000000"),
+            yanchor="bottom",
         )
 
-    # Model fronts: coloured dotted
+    # Model fronts: coloured dotted line + annotation
     for fr in front_results:
         if fr is None:
             continue
         colour = colours.get(fr.model_id, "#888888")
         alias = _model_alias(fr.model_id)
         for ev in fr.model_events:
-            fig.add_vline(
-                x=_to_py_dt(ev.datetime),
-                line_dash="dot",
-                line_color=colour,
-                line_width=1.5,
-                annotation_text=alias,
-                annotation_position="bottom right",
-                annotation_font=dict(size=9, color=colour),
+            x_str = _dt_str(ev.datetime)
+            fig.add_shape(
+                type="line", x0=x_str, x1=x_str, y0=0, y1=1,
+                yref="paper", line=dict(color=colour, width=1.5, dash="dot"),
+            )
+            fig.add_annotation(
+                x=x_str, y=0, yref="paper", text=alias,
+                showarrow=False, font=dict(size=9, color=colour),
+                yanchor="top",
             )
 
     return fig
